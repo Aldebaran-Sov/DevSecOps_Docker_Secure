@@ -1,37 +1,36 @@
-# Dockerfile illustrant de mauvaises pratiques courantes
-# Mauvaise pratique 1 : aucune version, aucune variante slim, base très large
-FROM python
+# Good Dockerfile example following best practices
+# Image explicite, légère
+FROM python:3.12-slim@sha256:fa48eefe2146644c2308b909d6bb7651a768178f84fc9550dcd495e4d6d84d01
 
-# Mauvaise pratique 2 : pas de WORKDIR clair / absolu au début
-RUN mkdir app
-WORKDIR app
+# Labels (optionnel mais propre)
+LABEL maintainer="ton-email@example.com" \
+      description="Flask app dockerisée avec bonnes pratiques"
 
-# Mauvaise pratique 3 :
-# - utilisation de ADD au lieu de COPY
-# - copie du requirements avec tout le contexte
-# - pas de .dockerignore, on copie tout le contexte
-ADD . .
+# Créer utilisateur non-root
+RUN useradd -m -u 1001 appuser
 
-# Mauvaise pratique 4 : installation de paquets système inutiles
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        vim \
-        curl
+# Dossier de travail clair
+WORKDIR /app
 
-# Mauvaise pratique 5 : dépendances non pinées, installation après ADD .
-# => invalide le cache à chaque changement de code et rend le build lent
-RUN pip install -r requirements.txt.bad
+# Dépendances en premier pour profiter du cache
+COPY requirements.txt .
 
-# Mauvaise pratique 6 : variables "sensibles" en dur dans l'image
-ENV SECRET_KEY="super-secret-key" \
-    DATABASE_URL="postgres://user:password@localhost:5432/db" \
-    FLASK_ENV=development
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Mauvaise pratique 7 : on tourne en root (par défaut) sans user dédié
-# - aucun USER non-root défini
+# Copier le code applicatif
+COPY . .
 
+# Donner les bons droits au user applicatif
+RUN chown -R appuser:appuser /app
 
-# Mauvaise pratique 8 : utiliser le serveur de dev Flask (via python app.py)
-# en mode debug, au lieu d’un WSGI type gunicorn pour la "prod"
-# et cmd en forme shell, moins explicite
-CMD ["python", "app.py"]
+USER appuser
+
+EXPOSE 5000
+
+# Healthcheck sur l'endpoint Flask /health
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')" || exit 1
+
+# Utiliser Gunicorn (WSGI) plutôt que le serveur de dev Flask
+# "app:app" = fichier app.py / variable app = Flask(...)
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
