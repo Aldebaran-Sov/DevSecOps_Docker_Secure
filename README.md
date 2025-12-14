@@ -98,6 +98,17 @@ jq -r '
 | flask-demo:bad |  123 |  272 |  730 |
 | flask-demo:good |  0 |  11 |  52 |
 
+## Script d’automatisation
+Un script bash `script/scan_trivy.sh` est fourni pour automatiser le build des images, leur sauvegarde en tar, le scan Trivy et la génération d’un rapport markdown `Scan_Trivy.md`.
+
+**Attention** : si vous avez fait les commandes manuelement sans passer par le script, supprimez les fichiers générés (`flask-bad.tar`, `flask-good.tar`, `trivy-bad.json`, `trivy-good.json`) avant d'exécuter le script pour éviter les taille de containers incohérentes dans le rapport.
+
+
+```zsh
+chmod +x script/scan_trivy.sh
+./script/scan_trivy.sh
+```
+
 ## Ressources
 
 - https://docs.docker.com/build/building/best-practices/
